@@ -1,180 +1,224 @@
 'use client'
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { decryptAESGCM, encryptAESGCM, generateSHA256Key } from "./api/aes";
 
-export function Card({ children, className = "bg-primary flex flex-col gap-2 p-4 rounded-lg" }: Readonly<{
+// ---------- UI Components ----------
+export function Card({ children, className = "bg-primary flex flex-col gap-2 p-4 rounded-lg" }: {
   children?: React.ReactNode,
   className?: string,
-}>) {
-  return <div className={className}>
-    {children}
-  </div>
+}) {
+  return <div className={className}>{children}</div>;
 }
 
-export function Group({ children, title, className = "flex flex-col gap-2 p-4 pt-8" }: Readonly<{
+export function Group({ children, title, className = "flex flex-col gap-2 p-4 pt-8" }: {
   children?: React.ReactNode,
   className?: string,
   title?: string,
-}>) {
-  return <div className="relative border border-secondary mt-4 rounded-lg">
-    <span className="absolute top-0 left-10 -translate-y-[60%] px-2 bg-background">
-      {title}
-    </span>
-    <div className={className}>
-      {children}
+}) {
+  return (
+    <div className="relative border border-secondary mt-4 rounded-lg">
+      <span className="absolute top-0 left-10 -translate-y-[60%] px-2 bg-background">
+        {title}
+      </span>
+      <div className={className}>{children}</div>
     </div>
-  </div>
+  );
 }
 
-export function TextField({ label, name, children = null, id }: {
+export function TextField({ label, name, id, children }: {
   label?: string,
   name?: string,
+  id?: string,
   children?: React.ReactNode,
-  id?: string
 }) {
-  return <Card className="relative bg-primary flex flex-row not-lg:flex-col gap-4 p-4 rounded-lg">
-    <span className="w-32 flex flex-row justify-between shrink-0 py-3">
-      <span>{label}</span>
-      <span>:</span>
-    </span>
-    <input type="text" name={name} id={id} className="bg-secondary rounded-lg grow p-3" />
-    <div className={"flex flex-row-reverse items-center" + (children === null ? " hidden" : "")}>
-      {children}
-    </div>
-  </Card>
+  return (
+    <Card className="relative bg-primary flex flex-row not-lg:flex-col gap-4 p-4 rounded-lg">
+      <span className="w-32 flex flex-row justify-between shrink-0 py-3 not-lg:py-1">
+        <span>{label}</span>
+        <span>:</span>
+      </span>
+      <input
+        type="text"
+        name={name}
+        id={id}
+        className="bg-secondary rounded-lg grow p-3"
+      />
+      <div className={"flex flex-row-reverse items-center" + (children ? "" : " hidden")}>
+        {children}
+      </div>
+    </Card>
+  );
 }
 
 export function TextAreaField({ label, name, id }: {
   label?: string,
   name?: string,
-  id?: string
+  id?: string,
 }) {
-  return <Card className="relative bg-primary flex flex-row gap-4 p-4 rounded-lg">
-    <span className="w-32 flex flex-row justify-between shrink-0 py-3">
-      <span>{label}</span>
-      <span>:</span>
-    </span>
-    <textarea name={name} id={id} className="bg-secondary rounded-lg grow p-3 h-52"></textarea>
-  </Card>
+  return (
+    <Card className="relative bg-primary flex flex-row not-lg:flex-col gap-4 p-4 rounded-lg">
+      <span className="w-32 flex flex-row justify-between shrink-0 py-3 not-lg:py-1">
+        <span>{label}</span>
+        <span>:</span>
+      </span>
+      <textarea
+        name={name}
+        id={id}
+        className="bg-secondary rounded-lg grow p-3 h-52"
+      ></textarea>
+    </Card>
+  );
 }
 
 export function Button({ children, onClick }: {
   children?: React.ReactNode,
-  onClick?: React.MouseEventHandler<HTMLButtonElement>
+  onClick?: React.MouseEventHandler<HTMLButtonElement>,
 }) {
-  return <button className="bg-blue-600 hover:bg-blue-500 p-3 px-5 rounded-lg duration-200 shadow-lg shadow-black/20" onClick={onClick}>
-    {children}
-  </button>
+  return (
+    <button
+      className="bg-blue-600 hover:bg-blue-500 p-3 px-5 rounded-lg duration-200 shadow-lg shadow-black/20 active:scale-[0.98]"
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
 }
 
+// ---------- Loading Overlay ----------
+const LoadingOverlay = React.memo(({ visible }: { visible: boolean }) => (
+  <div
+    className={`fixed top-0 left-0 w-full h-full bg-black/10 duration-300 transition-opacity ${
+      visible ? "opacity-100 visible" : "opacity-0 invisible"
+    }`}
+  />
+));
+
+// ---------- Notification ----------
+const Notif = React.memo(({ msg, visible }: { msg?: string; visible: boolean }) => (
+  <div
+    id="notif"
+    className={`fixed bottom-5 left-1/2 -translate-x-1/2 ${
+      visible ? "translate-y-0 opacity-100" : "translate-y-32 opacity-0"
+    } max-w-64 bg-blue-500 p-5 py-3 rounded-lg flex flex-col justify-center items-center 
+      duration-300 will-change-transform shadow-lg shadow-black/20`}
+  >
+    {msg}
+  </div>
+));
+
+// ---------- Main Component ----------
 export default function Home() {
+  const keyRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
+  const notifActive = useRef(false);
+
   const [result, setResult] = useState<string>();
-  const [loading, setLoading] = useState(true);
-  const [key, setKey] = useState<HTMLElement | any>()
-  const [input, setInput] = useState<HTMLElement | any>()
-  const [notif, setNotif] = useState<string>("translate-y-32")
-  const [notifMsg, setNotifMsg] = useState<string>();
-
-  var isNotifShow = false;
-
-  useEffect(() => {
-    setKey(document.getElementById("key"));
-    setInput(document.getElementById("input"));
-    setLoading(false);
-  }, [])
+  const [loading, setLoading] = useState(false);
+  const [notifVisible, setNotifVisible] = useState(false);
+  const [notifMsg, setNotifMsg] = useState<string>("");
 
   async function Generate() {
     setLoading(true);
-    (key as any).value = await generateSHA256Key();
+    if (keyRef.current) {
+      keyRef.current.value = await generateSHA256Key();
+    }
     setLoading(false);
   }
 
   async function Encrypt() {
+    if (!inputRef.current || !keyRef.current) return;
     setLoading(true);
     try {
-      var i = input.value as string;
-      var k = key.value as string;
-      var task = await encryptAESGCM(i, k);
+      const task = await encryptAESGCM(inputRef.current.value, keyRef.current.value);
       setResult(task);
-    }
-    catch (reason: unknown) {
-      let msg = "Unknown error";
-
-      if (reason instanceof DOMException) {
-        msg = `CryptoError: ${reason.message}`;
-      } else if (reason instanceof Error) {
-        msg = reason.message;
-      } else if (typeof reason === "string") {
-        msg = reason;
-      }
-
+    } catch (reason: unknown) {
+      const msg =
+        reason instanceof DOMException
+          ? `CryptoError: ${reason.message}`
+          : reason instanceof Error
+          ? reason.message
+          : typeof reason === "string"
+          ? reason
+          : "Unknown error";
       setResult(msg);
-    }
-    finally {
-      setLoading(false)
+    } finally {
+      setLoading(false);
     }
   }
 
   async function Decrypt() {
+    if (!inputRef.current || !keyRef.current) return;
     setLoading(true);
     try {
-      var i = input.value as string;
-      var k = key.value as string;
-      var task = await decryptAESGCM(i, k);
+      const task = await decryptAESGCM(inputRef.current.value, keyRef.current.value);
       setResult(task);
-    }
-    catch (reason: unknown) {
-      let msg = "Unknown error";
-
-      if (reason instanceof DOMException) {
-        msg = `CryptoError: ${reason.message}`;
-      } else if (reason instanceof Error) {
-        msg = reason.message;
-      } else if (typeof reason === "string") {
-        msg = reason;
-      }
-
+    } catch (reason: unknown) {
+      const msg =
+        reason instanceof DOMException
+          ? `CryptoError: ${reason.message}`
+          : reason instanceof Error
+          ? reason.message
+          : typeof reason === "string"
+          ? reason
+          : "Unknown error";
       setResult(msg);
-    }
-    finally {
-      setLoading(false)
+    } finally {
+      setLoading(false);
     }
   }
 
   function ShowNotif(msg: string) {
-    if (isNotifShow) return;
-    isNotifShow = true;
-    setNotif(isNotifShow ? "translate-y-0" : "translate-y-32");
+    if (notifActive.current) return;
+    notifActive.current = true;
     setNotifMsg(msg);
-
+    setNotifVisible(true);
     setTimeout(() => {
-      setNotif("translate-y-32");
-      isNotifShow = false;
-    }, 3000)
+      setNotifVisible(false);
+      notifActive.current = false;
+    }, 3000);
   }
 
   function CopyResult() {
-    var r = "";
-    if (result === undefined) {
-      console.log("No Value to Copy");
-      ShowNotif("No Value to Copy");
+    if (!result) {
+      ShowNotif("No value to copy");
+      return;
     }
-    else {
-      r = result;
-      navigator.clipboard.writeText(r)
-      ShowNotif("Text Copyed to clipboard!");
-    }
+    ShowNotif("Copied to clipboard!");
+    navigator.clipboard.writeText(result);
   }
-
 
   return (
     <>
       <Group title="Input">
-        <TextField label="Secret Key" id="key">
-          <Button onClick={Generate}>Generate</Button>
-        </TextField>
-        <TextAreaField label="Input" id="input" />
+        <Card>
+          <div className="flex flex-row not-lg:flex-col gap-2">
+            <span className="w-32 flex flex-row justify-between shrink-0 py-3 not-lg:py-1">
+              <span>Secret Key</span>
+              <span>:</span>
+            </span>
+            <input
+              ref={keyRef}
+              type="text"
+              className="bg-secondary rounded-lg grow p-3"
+            />
+            <div className="flex flex-row-reverse">
+              <Button onClick={Generate}>Generate</Button>
+            </div>
+          </div>
+        </Card>
+        <Card>
+          <div className="flex flex-row not-lg:flex-col gap-2">
+            <span className="w-32 flex flex-row justify-between shrink-0 py-3 not-lg:py-1">
+              <span>Input</span>
+              <span>:</span>
+            </span>
+            <textarea
+              ref={inputRef}
+              className="bg-secondary rounded-lg grow p-3 h-52"
+            ></textarea>
+          </div>
+        </Card>
         <Card>
           <div className="flex flex-row-reverse gap-3">
             <Button onClick={Encrypt}>Encrypt</Button>
@@ -182,25 +226,21 @@ export default function Home() {
           </div>
         </Card>
       </Group>
+
       <Group title="Result">
         <Card className="bg-primary flex flex-col gap-4 p-4 rounded-lg">
           <div className="flex flex-row justify-between items-center">
             <span>Output</span>
-            <div className="flex flex-row-reverse items-center">
-              <Button onClick={CopyResult}>Copy</Button>
-            </div>
+            <Button onClick={CopyResult}>Copy</Button>
           </div>
           <div className="bg-secondary p-3 rounded-lg">
             <p className="min-h-32 max-h-64 overflow-y-auto break-all">{result}</p>
           </div>
         </Card>
       </Group>
-      <div className={(loading ? "visible" : "hidden") + " fixed top-0 left-0 w-full h-full bg-black/10 duration-300"}>
 
-      </div>
-      <div id="notif" className={`fixed bottom-5 left-[50%] ${notif} max-w-64 bg-blue-500 p-5 py-3 rounded-lg flex flex-col justify-center items-cente duration-300`}>
-        {notifMsg}
-      </div>
+      <LoadingOverlay visible={loading} />
+      <Notif msg={notifMsg} visible={notifVisible} />
     </>
   );
 }
