@@ -193,7 +193,7 @@ export default function Home() {
       <Group title="Input">
         <Card>
           <div className="flex flex-row not-lg:flex-col gap-2">
-            <span className="w-32 flex flex-row justify-between shrink-0 py-3 not-lg:py-1">
+            <span className="lg:w-32 flex flex-row lg:justify-between not-lg:gap-2 shrink-0 py-3 not-lg:py-1">
               <span>Secret Key</span>
               <span>:</span>
             </span>
@@ -209,7 +209,7 @@ export default function Home() {
         </Card>
         <Card>
           <div className="flex flex-row not-lg:flex-col gap-2">
-            <span className="w-32 flex flex-row justify-between shrink-0 py-3 not-lg:py-1">
+            <span className="lg:w-32 flex flex-row lg:justify-between not-lg:gap-2 shrink-0 py-3 not-lg:py-1">
               <span>Input</span>
               <span>:</span>
             </span>
@@ -223,6 +223,9 @@ export default function Home() {
           <div className="flex flex-row-reverse gap-3">
             <Button onClick={Encrypt}>Encrypt</Button>
             <Button onClick={Decrypt}>Decrypt</Button>
+            <Button onClick={() => {
+              inputRef.current!.value = "";
+            }}>Clear</Button>
           </div>
         </Card>
       </Group>
