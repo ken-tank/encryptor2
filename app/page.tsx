@@ -77,7 +77,7 @@ export function Button({ children, onClick }: {
 }) {
   return (
     <button
-      className="bg-blue-600 hover:bg-blue-500 p-3 px-5 rounded-lg duration-200 shadow-lg shadow-black/20 active:scale-[0.98]"
+      className="bg-blue-600 hover:bg-blue-500 p-3 px-5 rounded-lg duration-200 active:scale-[0.98]"
       onClick={onClick}
     >
       {children}
