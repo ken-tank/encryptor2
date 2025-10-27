@@ -33,7 +33,7 @@ export function TextField({ label, name, children = null, id }: {
   children?: React.ReactNode,
   id?: string
 }) {
-  return <Card className="relative bg-primary flex flex-row gap-4 p-4 rounded-lg">
+  return <Card className="relative bg-primary flex flex-row not-lg:flex-col gap-4 p-4 rounded-lg">
     <span className="w-32 flex flex-row justify-between shrink-0 py-3">
       <span>{label}</span>
       <span>:</span>
